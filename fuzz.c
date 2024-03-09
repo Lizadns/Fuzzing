@@ -80,6 +80,50 @@ void generate_fuzzed_tar_header(struct tar_t *header, int test_case) {
             }
             header->linkname[99] = '\0'; // Null-terminate the link name
             break;
+        case 8:
+            // Invalid file name
+            for (int i = 0; i < 105; i++) {
+                header->name[i] = 'a'; // Invalid file name
+            }
+            header->name[104] = '\0'; // Null-terminate the file name
+            break;
+        case 9:
+            // Invalid magic value
+            strcpy(header->magic, "invalid");
+            break;
+        case 10:
+            // Invalid version
+            strcpy(header->version, "99");
+            break;
+        case 11:
+            // Invalid file mode
+            strcpy(header->mode, "invalid");
+            break;
+        case 12:
+            // Invalid file size
+            strcpy(header->size, "777777777777");
+            break;
+        case 13:
+            // Invalid modification time
+            strcpy(header->mtime, "invalid");
+            break;
+        case 14:
+            // Invalid user name and group name
+            for (int i = 0; i < 35; i++) {
+                header->uname[i] = 'a'; // Invalid user name
+                header->gname[i] = 'b'; // Invalid group name
+            }
+            header->uname[34] = '\0'; // Null-terminate the user name
+            header->gname[34] = '\0'; // Null-terminate the group name
+            break;
+        case 15:
+            // Invalid device major and minor numbers
+            strcpy(header->devmajor, "invalid");
+            strcpy(header->devminor, "invalid");
+            break;
+        case 22:
+            header->typeflag = '3';
+            break;
     }
 
     // Calculate the checksum after introducing variations
@@ -146,6 +190,138 @@ char* write_fuzzed_tar_file(int test_case) {
                 fwrite(padding, 512 - remaining_bytes2, 1, fp);
             }
         }
+        if (test_case == 16) {
+            // Empty file content
+            char data[1] = {0};
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }   
+        if (test_case == 17) {
+            // Large file content
+            char data[1024 * 1024] = {0}; // 1 MB file
+            memset(data, 'a', sizeof(data));
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 18) {
+            // File content with special characters
+            char data[] = "!@#$%^&*()_+-={}[]|;:'\",.<>?/\\";
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 19) {
+            // File content with null bytes
+            char data[] = "hello\0world";
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 20) {
+            // File content with non-printable characters
+            char data[] = {1, 2, 3, 4, 5};
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 21) {
+            // Truncated file content
+            char data[] = "This is a test file with truncated content";
+            fwrite(data, 20, 1, fp); // Write only the first 20 bytes
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + 20) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 22) {
+            // Mismatched file mode and content
+            char data[] = "This is regular file content";
+            fwrite(data, sizeof(data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 23) {
+            // Extra data after the file content
+            char data[] = "This is a test file";
+            fwrite(data, sizeof(data), 1, fp);
+
+            char extra_data[] = "This is extra data";
+            fwrite(extra_data, sizeof(extra_data), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes, considering both data and extra_data
+            size_t remaining_bytes = (sizeof(struct tar_t) + sizeof(data) + sizeof(extra_data)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+        if (test_case == 24) {
+            // First file
+            struct tar_t header1;
+            generate_fuzzed_tar_header(&header1, 0);
+            strcpy(header1.name, "file1.txt");
+            strcpy(header1.size, "00000000010");
+            calculate_checksum(&header1);
+            fwrite(&header1, sizeof(struct tar_t), 1, fp);
+
+            char data1[] = "First File";
+            fwrite(data1, sizeof(data1), 1, fp);
+
+            // Second file with overlapping data
+            struct tar_t header2;
+            generate_fuzzed_tar_header(&header2, 0);
+            strcpy(header2.name, "file2.txt");
+            strcpy(header2.size, "00000000010");
+            calculate_checksum(&header2);
+            fwrite(&header2, sizeof(struct tar_t), 1, fp);
+
+            char data2[] = "Second File";
+            fseek(fp, -5, SEEK_CUR); // Move the file pointer back to create overlapping data
+            fwrite(data2, sizeof(data2), 1, fp);
+
+            // Add padding to make the tar file a multiple of 512 bytes
+            size_t remaining_bytes = (2 * sizeof(struct tar_t) + sizeof(data1) + sizeof(data2)) % 512;
+            if (remaining_bytes != 0) {
+                char padding[512] = {0};
+                fwrite(padding, 512 - remaining_bytes, 1, fp);
+            }
+        }
+
         fclose(fp);
         return strdup(filename);
     }
@@ -187,7 +363,7 @@ void write_tar_file() {
  */
 int main(int argc, char* argv[])
 {
-    const int num_test_cases = 9; // Adjust based on how many cases you have
+    const int num_test_cases = 25; // Adjust based on how many cases you have
     for (int i = 0; i < num_test_cases; ++i) {
         char* filename = write_fuzzed_tar_file(i);
         if (filename == NULL) {
