@@ -167,28 +167,33 @@ char* write_fuzzed_tar_file(int test_case) {
             }
         }
         if (test_case == 6){
-            //2 file in the archive
-            struct tar_t header2;
-            memset(&header2, 0, sizeof(struct tar_t));
-            snprintf(header2.name, sizeof(header2.name), "fuzz2.txt");
-            snprintf(header2.mode, sizeof(header2.mode), "%07o", 0644);
-            snprintf(header2.size, sizeof(header2.size), "%011o", 10);
-            strcpy(header2.magic, "ustar");
-            strcpy(header2.version, "00");
-            calculate_checksum(&header2); // Calculate checksum for the second header
-            
-            // Write the second header
-            fwrite(&header2, sizeof(struct tar_t), 1, fp);
-            // Write the content of the second file
-            const char* content2 = "Hi, file2!\n";
-            size_t content_size2 = strlen(content2);
-            fwrite(content2, content_size2, 1, fp);
-            // If needed, add padding to make the tar file multiple of 512 bytes
-            size_t remaining_bytes2 = (sizeof(struct tar_t) + content_size2) % 512;
-            if (remaining_bytes2 != 0) {
-                char padding[512] = {0};
-                fwrite(padding, 512 - remaining_bytes2, 1, fp);
-            }
+            //100 files in the archive
+            for (int j = 1; j < 1000; j++) {
+                // Create the header for the current file
+                struct tar_t header;
+                memset(&header, 0, sizeof(struct tar_t));
+                snprintf(header.name, sizeof(header.name), "file%d.txt", j);
+                snprintf(header.mode, sizeof(header.mode), "%07o", 0644);
+                snprintf(header.size, sizeof(header.size), "%011o", 10);
+                strcpy(header.magic, "ustar");
+                strcpy(header.version, "00");
+                calculate_checksum(&header);
+
+                // Write the header to the tar file
+                fwrite(&header, sizeof(struct tar_t), 1, fp);
+
+                // Write the content of the file (assuming it's "Hi, file!")
+                const char* content = "Hi, file!\n";
+                size_t content_size = strlen(content);
+                fwrite(content, content_size, 1, fp);
+
+                // Add padding if necessary to make the tar file multiple of 512 bytes
+                size_t remaining_bytes = (sizeof(struct tar_t) + content_size) % 512;
+                if (remaining_bytes != 0) {
+                    char padding[512] = {0};
+                    fwrite(padding, 512 - remaining_bytes, 1, fp);
+                    }
+                }
         }
         if (test_case == 16) {
             // Empty file content
@@ -398,7 +403,7 @@ int main(int argc, char* argv[])
             char new_filename[64];
             snprintf(new_filename, sizeof(new_filename), "success_archive%d.tar", i);
             if (rename(filename, new_filename) != 0) {
-                printf("Erreur lors du renommage du fichier.\n");
+                printf("File renaming error.\n");
             }
             goto finally;
         }
